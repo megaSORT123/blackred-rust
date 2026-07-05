@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLACKRED — Rust Server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0908;
+    --bg-alt:#161210;
+    --panel:#1c1714;
+    --steel:#332c27;
+    --steel-light:#4a3f38;
+    --rust:#7a2418;
+    --rust-bright:#b4402c;
+    --rust-dim:#5c1a10;
+    --blood:#2a0704;
+    --bone:#cdc3b4;
+    --bone-dim:#8f8478;
+    --ok:#8a9a5b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--bone);
+    font-family:'Archivo', sans-serif;
+    overflow-x:hidden;
+    position:relative;
+  }
+  /* subtle brushed-metal / grain texture */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:999;
+    opacity:0.05;
+    background-image:
+      repeating-linear-gradient(115deg, #fff 0px, transparent 1px, transparent 3px);
+    mix-blend-mode:overlay;
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:1;
+    background:radial-gradient(ellipse at 50% 0%, rgba(122,36,24,0.10), transparent 60%),
+               radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.6), transparent 70%);
+  }
+
+  a{color:inherit;}
+
+  .mono{font-family:'JetBrains Mono', monospace;}
+
+  /* ============ LANGUAGE SWITCH ============ */
+  .lang-switch{
+    position:fixed;
+    top:1.1rem;
+    right:1.1rem;
+    z-index:1000;
+    display:flex;
+    gap:2px;
+    background:var(--panel);
+    border:1px solid var(--steel);
+    padding:3px;
+  }
+  .lang-switch button{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.7rem;
+    letter-spacing:0.08em;
+    padding:0.4rem 0.6rem;
+    background:transparent;
+    border:1px solid transparent;
+    color:var(--bone-dim);
+    cursor:pointer;
+    transition:color .15s, border-color .15s, background .15s;
+  }
+  .lang-switch button:hover{color:var(--bone);}
+  .lang-switch button.active{
+    color:var(--rust-bright);
+    border-color:var(--rust-bright);
+    background:rgba(180,64,44,0.08);
+  }
+  .lang-switch button:focus-visible{outline:2px solid var(--rust-bright); outline-offset:2px;}
+
+  /* ============ HERO ============ */
+  .hero{
+    position:relative;
+    min-height:100svh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:2.5rem 1.5rem;
+    background:
+      linear-gradient(180deg, #0e0b0a 0%, #0b0908 60%, #060504 100%);
+    border-bottom:1px solid var(--steel);
+  }
+  .hero-frame{
+    position:absolute; inset:14px;
+    border:1px solid var(--steel);
+    pointer-events:none;
+  }
+  .hero-frame::before,.hero-frame::after,
+  .corner-tl,.corner-br{
+    content:"";
+    position:absolute;
+    width:8px; height:8px;
+    background:var(--rust-dim);
+    box-shadow:0 0 0 2px var(--bg);
+  }
+  .hero-frame::before{top:-4px; left:-4px;}
+  .hero-frame::after{bottom:-4px; right:-4px;}
+
+  .status-bar{
+    display:flex;
+    gap:2.2rem;
+    flex-wrap:wrap;
+    justify-content:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--bone-dim);
+    margin-bottom:2.4rem;
+  }
+  .status-bar span.dot{
+    color:var(--ok);
+  }
+  .status-bar .item{display:flex; align-items:center; gap:0.5rem;}
+
+  /* ============ WORDMARK: cracked-metal aggressive logotype ============ */
+  .ember-glow{
+    position:absolute;
+    top:50%; left:50%;
+    width:min(120vw,1400px);
+    height:600px;
+    transform:translate(-50%,-50%);
+    background:
+      radial-gradient(ellipse 45% 60% at 50% 55%, rgba(196,60,30,0.35), transparent 70%),
+      radial-gradient(ellipse 70% 40% at 50% 70%, rgba(90,15,8,0.4), transparent 75%);
+    filter:blur(6px);
+    pointer-events:none;
+    z-index:0;
+  }
+  .wordmark-wrap{
+    position:relative;
+    z-index:2;
+    display:inline-block;
+    padding:0.4rem 0.2rem;
+  }
+  .wordmark{
+    display:block;
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:clamp(3.2rem, 15vw, 10rem);
+    line-height:0.88;
+    letter-spacing:-0.02em;
+    text-transform:uppercase;
+    transform:skewX(-9deg);
+    transform-origin:bottom left;
+    -webkit-font-smoothing:antialiased;
+    white-space:nowrap;
+  }
+  .wordmark.outline{
+    position:relative;
+    color:#0d0403;
+    -webkit-text-stroke:2px #000;
+    transform:skewX(-9deg) translate(5px,6px);
+    filter:blur(0.5px);
+    z-index:1;
+  }
+  .wordmark.base{
+    position:absolute;
+    inset:0.4rem 0.2rem auto 0.2rem;
+    background-image:linear-gradient(180deg,
+      #f1c6ab 0%,
+      #e2694a 14%,
+      #b4402c 34%,
+      #7a2418 58%,
+      #3a0d08 82%,
+      #150402 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    z-index:2;
+    filter:drop-shadow(2px 3px 0 #1a0503) drop-shadow(0 8px 14px rgba(0,0,0,0.55));
+  }
+  .wordmark .sub-r{ color:inherit; }
+
+  .cta-row{
+    margin-top:2.6rem;
+    display:flex;
+    gap:1rem;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .btn{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.85rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    padding:0.95rem 1.6rem;
+    border:1px solid var(--steel-light);
+    background:var(--panel);
+    color:var(--bone);
+    cursor:pointer;
+    transition:border-color .15s, background .15s, color .15s;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    gap:0.6rem;
+  }
+  .btn:hover{border-color:var(--rust-bright); color:var(--rust-bright);}
+  .btn:focus-visible{outline:2px solid var(--rust-bright); outline-offset:3px;}
+  .btn.primary{
+    background:var(--rust);
+    border-color:var(--rust);
+    color:#efe6da;
+  }
+  .btn.primary:hover{background:var(--rust-bright); border-color:var(--rust-bright); color:#0b0908;}
+
+  /* ============ HAZARD DIVIDER ============ */
+  .hazard{
+    height:14px;
+    background:repeating-linear-gradient(135deg, var(--rust-dim) 0 22px, #0b0908 22px 44px);
+    border-top:1px solid var(--steel);
+    border-bottom:1px solid var(--steel);
+  }
+
+  /* ============ SECTION SHELL ============ */
+  section{
+    padding:5.5rem 1.5rem;
+    max-width:1080px;
+    margin:0 auto;
+    position:relative;
+    z-index:2;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.25em;
+    text-transform:uppercase;
+    color:var(--rust-bright);
+    margin-bottom:0.7rem;
+  }
+  h2{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size:clamp(1.8rem, 4vw, 2.8rem);
+    letter-spacing:0.01em;
+    color:var(--bone);
+    margin-bottom:2.4rem;
+    text-shadow:2px 2px 0 var(--blood);
+  }
+
+  /* ============ SPECS GRID ============ */
+  .specs-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(190px,1fr));
+    gap:1px;
+    background:var(--steel);
+    border:1px solid var(--steel);
+  }
+  .spec-card{
+    background:var(--panel);
+    padding:1.8rem 1.5rem;
+    position:relative;
+  }
+  .spec-card::before{
+    content:"";
+    position:absolute; top:8px; left:8px;
+    width:5px; height:5px;
+    border-radius:50%;
+    background:var(--steel-light);
+    box-shadow:
+      calc(100% - 13px) 0 0 var(--steel-light);
+  }
+  .spec-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.68rem;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    color:var(--bone-dim);
+    margin-bottom:0.6rem;
+  }
+  .spec-value{
+    font-family:'Anton', sans-serif;
+    font-size:1.9rem;
+    color:var(--rust-bright);
+  }
+
+  /* ============ SCHEDULE ============ */
+  .schedule-list{list-style:none;}
+  .schedule-list li{
+    display:flex;
+    gap:1.5rem;
+    align-items:baseline;
+    padding:1.3rem 0;
+    border-bottom:1px solid var(--steel);
+  }
+  .schedule-list li:first-child{border-top:1px solid var(--steel);}
+  .sched-num{
+    font-family:'JetBrains Mono', monospace;
+    color:var(--rust-bright);
+    font-size:0.9rem;
+    min-width:2.6rem;
+  }
+  .sched-body b{
+    display:block;
+    font-family:'Archivo', sans-serif;
+    font-weight:600;
+    font-size:1.05rem;
+    color:var(--bone);
+  }
+  .sched-body span{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.78rem;
+    color:var(--bone-dim);
+  }
+
+  /* ============ RULES ============ */
+  .rules-list{list-style:none; display:grid; gap:0;}
+  .rules-list li{
+    display:flex;
+    gap:1.2rem;
+    padding:1.1rem 0;
+    border-bottom:1px solid var(--steel);
+    font-size:0.98rem;
+    color:var(--bone);
+  }
+  .rules-list li:first-child{border-top:1px solid var(--steel);}
+  .rule-tag{
+    font-family:'JetBrains Mono', monospace;
+    color:var(--bone-dim);
+    font-size:0.8rem;
+    min-width:3.4rem;
+  }
+
+  /* ============ FOOTER ============ */
+  footer{
+    border-top:1px solid var(--steel);
+    background:var(--bg-alt);
+    padding:3.5rem 1.5rem 2.5rem;
+    text-align:center;
+  }
+  footer .copyright{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.7rem;
+    color:var(--bone-dim);
+    opacity:0.6;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+  }
+
+  @media (max-width:640px){
+    .status-bar{gap:1.2rem; font-size:0.65rem;}
+    section{padding:3.5rem 1.2rem;}
+    .lang-switch{top:0.6rem; right:0.6rem;}
+    .lang-switch button{padding:0.3rem 0.45rem; font-size:0.62rem;}
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-switch" role="group" aria-label="Language / Язык / Мова">
+  <button type="button" data-lang="ru" class="active" aria-pressed="true">RU</button>
+  <button type="button" data-lang="en" aria-pressed="false">EN</button>
+  <button type="button" data-lang="uk" aria-pressed="false">UA</button>
+</div>
+
+<header class="hero">
+  <div class="hero-frame"></div>
+  <div class="status-bar">
+    <span class="item"><span class="dot">●</span> <span data-i18n="status.online">СЕРВЕР ОНЛАЙН</span></span>
+    <span class="item" id="playerCount" data-i18n="status.players">182 / 200 ИГРОКОВ</span>
+    <span class="item" id="wipeTimer">ВАЙП ЧЕРЕЗ: —</span>
+  </div>
+
+  <div class="ember-glow" aria-hidden="true"></div>
+  <div class="wordmark-wrap">
+    <h1 class="wordmark outline" aria-hidden="true">BLACKRED</h1>
+    <h1 class="wordmark base">BLACKRED</h1>
+  </div>
+
+  <div class="cta-row">
+    <a class="btn" href="https://discord.gg/cCYUCfs7G6" target="_blank" rel="noopener">Discord</a>
+  </div>
+</header>
+
+<div class="hazard" role="presentation"></div>
+
+<section id="specs">
+  <div class="eyebrow" data-i18n="specs.eyebrow">Параметры сервера</div>
+  <h2 data-i18n="specs.title">Настройки под контролем</h2>
+  <div class="specs-grid">
+    <div class="spec-card">
+      <div class="spec-label" data-i18n="specs.region">Регион</div>
+      <div class="spec-value">DE</div>
+    </div>
+    <div class="spec-card">
+      <div class="spec-label" data-i18n="specs.rate">Рейт</div>
+      <div class="spec-value">x2</div>
+    </div>
+    <div class="spec-card">
+      <div class="spec-label" data-i18n="specs.group">Группа</div>
+      <div class="spec-value">SQUAD (x4)</div>
+    </div>
+  </div>
+</section>
+
+<div class="hazard" role="presentation"></div>
+
+<section id="schedule">
+  <div class="eyebrow" data-i18n="schedule.eyebrow">Расписание</div>
+  <h2 data-i18n="schedule.title">График вайпов</h2>
+  <ul class="schedule-list">
+    <li>
+      <span class="sched-num mono">01</span>
+      <span class="sched-body">
+        <b data-i18n="schedule.wipe.title">Карта</b>
+        <span data-i18n="schedule.wipe.desc">Каждую субботу, 14:00 MSK</span>
+      </span>
+    </li>
+  </ul>
+</section>
+
+<section id="rules">
+  <div class="eyebrow" data-i18n="rules.eyebrow">Регламент</div>
+  <h2 data-i18n="rules.title">Правила сервера</h2>
+  <ul class="rules-list">
+    <li><span class="rule-tag">R-01</span> <span data-i18n="rules.r1">Читы, макросы и сторонний софт — бан без предупреждения.</span></li>
+    <li><span class="rule-tag">R-02</span> <span data-i18n="rules.r2">Лимит группы — 4 игрока (Squad). Тимстак карается вайпом базы.</span></li>
+    <li><span class="rule-tag">R-03</span> <span data-i18n="rules.r3">РМТ (обмен на реальные деньги) запрещён в любой форме.</span></li>
+    <li><span class="rule-tag">R-04</span> <span data-i18n="rules.r4">Оскорбления и токсичность в чате — мут. За оскорбление родных — кидайте скриншот или запись в Discord.</span></li>
+    <li><span class="rule-tag">R-05</span> <span data-i18n="rules.r5">Абуз багов карты и текстур — перманентный бан.</span></li>
+    <li><span class="rule-tag">R-06</span> <span data-i18n="rules.r6">Спорные ситуации решает администрация, решение — окончательное.</span></li>
+  </ul>
+</section>
+
+<footer>
+  <div class="copyright" data-i18n="footer.copyright">© 2026 BLACKRED RUST. Сайт не аффилирован с Facepunch Studios.</div>
+</footer>
+
+<script>
+
+  const I18N = {
+    ru:{
+      "status.online":"СЕРВЕР ОНЛАЙН",
+      "status.players":"182 / 200 ИГРОКОВ",
+      "specs.eyebrow":"Параметры сервера",
+      "specs.title":"Настройки под контролем",
+      "specs.region":"Регион",
+      "specs.rate":"Рейт",
+      "specs.group":"Группа",
+      "schedule.eyebrow":"Расписание",
+      "schedule.title":"График вайпов",
+      "schedule.wipe.title":"Карта",
+      "schedule.wipe.desc":"Каждую субботу, 14:00 MSK",
+      "rules.eyebrow":"Регламент",
+      "rules.title":"Правила сервера",
+      "rules.r1":"Читы, макросы и сторонний софт — бан без предупреждения.",
+      "rules.r2":"Лимит группы — 4 игрока (Squad). Тимстак карается вайпом базы.",
+      "rules.r3":"РМТ (обмен на реальные деньги) запрещён в любой форме.",
+      "rules.r4":"Оскорбления и токсичность в чате — мут. За оскорбление родных — кидайте скриншот или запись в Discord.",
+      "rules.r5":"Абуз багов карты и текстур — перманентный бан.",
+      "rules.r6":"Спорные ситуации решает администрация, решение — окончательное.",
+      "footer.copyright":"© 2026 BLACKRED RUST. Сайт не аффилирован с Facepunch Studios.",
+      "wipe.prefix":"ВАЙП ЧЕРЕЗ:", "wipe.d":"Д", "wipe.h":"Ч", "wipe.m":"М"
+    },
+    en:{
+      "status.online":"SERVER ONLINE",
+      "status.players":"182 / 200 PLAYERS",
+      "specs.eyebrow":"Server settings",
+      "specs.title":"Settings under control",
+      "specs.region":"Region",
+      "specs.rate":"Rate",
+      "specs.group":"Group",
+      "schedule.eyebrow":"Schedule",
+      "schedule.title":"Wipe schedule",
+      "schedule.wipe.title":"Map",
+      "schedule.wipe.desc":"Every Saturday, 14:00 MSK",
+      "rules.eyebrow":"Rules",
+      "rules.title":"Server rules",
+      "rules.r1":"Cheats, macros and third-party software — ban with no warning.",
+      "rules.r2":"Group limit — 4 players (Squad). Team-stacking gets your base wiped.",
+      "rules.r3":"RMT (real-money trading) is forbidden in any form.",
+      "rules.r4":"Insults and toxicity in chat — mute. For insulting a player's family — submit a screenshot or recording in Discord.",
+      "rules.r5":"Abusing map or texture bugs — permanent ban.",
+      "rules.r6":"Disputes are resolved by the admin team, decision is final.",
+      "footer.copyright":"© 2026 BLACKRED RUST. This site is not affiliated with Facepunch Studios.",
+      "wipe.prefix":"WIPE IN:", "wipe.d":"D", "wipe.h":"H", "wipe.m":"M"
+    },
+    uk:{
+      "status.online":"СЕРВЕР ОНЛАЙН",
+      "status.players":"182 / 200 ГРАВЦІВ",
+      "specs.eyebrow":"Параметри сервера",
+      "specs.title":"Налаштування під контролем",
+      "specs.region":"Регіон",
+      "specs.rate":"Рейт",
+      "specs.group":"Група",
+      "schedule.eyebrow":"Розклад",
+      "schedule.title":"Графік вайпів",
+      "schedule.wipe.title":"Карта",
+      "schedule.wipe.desc":"Щосуботи, 14:00 MSK",
+      "rules.eyebrow":"Регламент",
+      "rules.title":"Правила сервера",
+      "rules.r1":"Чити, макроси та стороннє ПЗ — бан без попередження.",
+      "rules.r2":"Ліміт групи — 4 гравці (Squad). Тімстак карається вайпом бази.",
+      "rules.r3":"РМТ (обмін на реальні гроші) заборонений у будь-якій формі.",
+      "rules.r4":"Образи та токсичність у чаті — мут. За образу рідних — надішліть скриншот або запис у Discord.",
+      "rules.r5":"Абʼюз багів карти й текстур — перманентний бан.",
+      "rules.r6":"Спірні ситуації вирішує адміністрація, рішення остаточне.",
+      "footer.copyright":"© 2026 BLACKRED RUST. Сайт не афілійований з Facepunch Studios.",
+      "wipe.prefix":"ВАЙП ЧЕРЕЗ:", "wipe.d":"Д", "wipe.h":"Г", "wipe.m":"Х"
+    }
+  };
+
+  let currentLang = "ru";
+
+  function applyLang(lang){
+    if(!I18N[lang]) return;
+    currentLang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el=>{
+      const key = el.getAttribute('data-i18n');
+      const val = I18N[lang][key];
+      if(val === undefined) return;
+      if(el.hasAttribute('data-i18n-html')){ el.innerHTML = val; }
+      else { el.textContent = val; }
+    });
+    document.documentElement.lang = lang;
+    document.querySelectorAll('.lang-switch button').forEach(b=>{
+      const active = b.dataset.lang === lang;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    updateTimer();
+  }
+
+  document.querySelectorAll('.lang-switch button').forEach(btn=>{
+    btn.addEventListener('click', ()=> applyLang(btn.dataset.lang));
+  });
+
+  // Countdown to next Thursday 15:00 MSK (server time assumed = local)
+  function nextWipeDate(){
+    const now = new Date();
+    const target = new Date(now);
+    const day = now.getDay(); // 0 Sun .. 4 Thu
+    let daysUntilThu = (4 - day + 7) % 7;
+    target.setDate(now.getDate() + daysUntilThu);
+    target.setHours(15,0,0,0);
+    if(target <= now){ target.setDate(target.getDate()+7); }
+    return target;
+  }
+  function updateTimer(){
+    const el = document.getElementById('wipeTimer');
+    if(!el) return;
+    const t = I18N[currentLang];
+    const diff = nextWipeDate() - new Date();
+    const d = Math.floor(diff/86400000);
+    const h = Math.floor((diff%86400000)/3600000);
+    const m = Math.floor((diff%3600000)/60000);
+    el.textContent = `${t["wipe.prefix"]} ${d}${t["wipe.d"]} ${h}${t["wipe.h"]} ${m}${t["wipe.m"]}`;
+  }
+  updateTimer();
+  setInterval(updateTimer, 60000);
+</script>
+
+</body>
+</html>
